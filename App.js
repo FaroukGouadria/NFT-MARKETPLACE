@@ -79,28 +79,44 @@ const App = () => {
     });
     ethereum.on('connect', connectInfo => {
       console.log('CONNECT INFO', connectInfo);
-      const runScript = `
-          window.ethereum = new Proxy(window.ethereum, {
-            get: (target, name) => {
-              if (name === 'selectedAddress') {
-                return '${ethereum.selectedAddress}';
-              }
-              return target[name];
-            },
-          });
-        `;
-
-      webViewRef.current.injectJavaScript(runScript);
-      //getProviderDetails();
+      console.log('INFO', ethereum);
+      if (webViewRef && webViewRef.current) {
+        console.log(webViewRef.current.props);
+        webViewRef.current.injectJavaScript(`
+        window.alert(${JSON.stringify(account)})
+          if (window.ethereum) {
+            window.ethereum = new Proxy(window.ethereum, {
+              get: (target, name) => {
+                if (name === 'selectedAddress') {
+                  console.log(${ethereum.selectedAddress})
+                  return '${ethereum.selectedAddress}';
+                }
+                return target[name];
+              },
+            
+          });true;
+          }else {
+            console.log('MetaMask not found');
+          }
+          `);
+      }
+      // webViewRef.current.injectJavaScript(runScript);
     });
+    //getProviderDetails();
     ethereum.on('accountsChanged', accounts => {
       console.log('ACCOUNTS', accounts);
       setAccount(accounts?.[0]);
-
       getBalance();
     });
   }, []);
 
+  const handleWebViewMessage = event => {
+    console.log('Received message:', event.nativeEvent);
+    const {type, data} = JSON.parse(event.nativeEvent.data);
+    if (type === 'SELECTED_ADDRESS') {
+      console.log('Selected Ethereum address:', data);
+    }
+  };
   const connect = async () => {
     try {
       const result = await ethereum.request({method: 'eth_requestAccounts'});
@@ -233,7 +249,9 @@ const App = () => {
       console.log(e);
     }
   };
-  const onMessage = message => {
+  const onMessage = (message) => {
+    if (message && message.nativeEvent) {
+      console.log('Received message:', message.nativeEvent);
     console.log('NEW MESSAGE', message);
     console.log('NEW MESSAGE', message.nativeEvent.data);
     const action = JSON.parse(message.nativeEvent.data);
@@ -242,8 +260,31 @@ const App = () => {
     } else if (action.method === 'accountsChanged') {
     } else if (action.method === 'chainChanged') {
     }
+    }
   };
-
+  const injectEthers = () => {
+    const script = ` window.postMessage({ type: 'INJECT_ETHERS', data: { ethers: '0x123456789abcdef', }, }); `;
+    webViewRef.current?.injectJavaScript(script);
+  };
+  const runFirst = `
+  window.alert(${JSON.stringify(account)});
+  if (window.ethereum) {
+    window.ethereum = new Proxy(window.ethereum, {
+      get: (target, name) => {
+        if (name === 'selectedAddress') {
+          console.log(${ethereum.selectedAddress})
+          return '${ethereum.selectedAddress}';
+        }
+        return target[name];
+      },
+    
+  });true;
+  }else {
+    console.log('MetaMask not found');
+  }
+  
+true; // note: this is required, or you'll sometimes get silent failures
+`;
   return ethereum !== undefined ? (
     <SafeAreaView>
       <StatusBar barStyle={'light-content'} />
@@ -266,13 +307,15 @@ const App = () => {
           startInLoadingState={true}
           style={{height: 600, backgroundColor: 'black'}}
           originWhitelist={['*']}
-          source={{uri: 'http:192.168.130.128:3000'}}
+          source={{uri: 'http:192.168.130.117:3000'}}
+          // injectedJavaScript={runFirst}
+          // injectedJavaScriptBeforeContentLoaded={runFirst}
           onLoad={() => {
             // console.log('PROVIDER', ether._metamask);
+
+            const inject = `console.log(${JSON.stringify(account)});`;
             const script = `window.ethereum = ${ethereum._metamask}`;
-            const runScript = `
-  window.ethereum = new Proxy(window.ethereum)
-`;
+            const runScript = `window.ethereum = new Proxy(window.ethereum)`;
             /*   const Script = `
             window.ethereum = new Proxy(window.ethereum, {
               get: (target, name) => {
@@ -283,7 +326,7 @@ const App = () => {
               },
             });
           `; */
-            //webViewRef.current.injectJavaScript(runScript);
+            // webViewRef.current.injectJavaScript(inject);
           }}
           onLoadStart={e => {
             //alreadyInjected = false;
@@ -296,7 +339,7 @@ const App = () => {
           }}
           javaScriptEnabledAndroid={true}
           //injectedJavaScript={runScript}
-          onMessage={onMessage}
+          onMessage={handleWebViewMessage}
         />
       </ScrollView>
     </SafeAreaView>

@@ -1,4 +1,4 @@
-const BASE_URL = 'http:192.168.130.128:3000'
+const BASE_URL = 'http:192.168.130.117:3000'
 
 const Env = {
   BASE_URL: BASE_URL,
