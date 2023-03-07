@@ -1,11 +1,3 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
-
 import React, {useEffect, useState, useRef} from 'react';
 import {
   Button,
@@ -14,16 +6,13 @@ import {
   ScrollView,
   StatusBar,
   Text,
-  useColorScheme,
 } from 'react-native';
 import {Colors} from 'react-native/Libraries/NewAppScreen';
 import BackgroundTimer from 'react-native-background-timer';
 import MetaMaskSDK from '@metamask/sdk';
 import {WebView} from 'react-native-webview';
-
 import {ethers} from 'ethers';
-
-//import UsingWebView from './components/UsingWebView';
+import Env from '@config'
 
 const sdk = new MetaMaskSDK({
   openDeeplink: link => {
@@ -31,8 +20,8 @@ const sdk = new MetaMaskSDK({
   },
   timer: BackgroundTimer,
   dappMetadata: {
-    name: 'React Native Test Dapp',
-    url: 'example.com',
+    name: 'React Native Dapp',
+    url: 'Duetodata NFT',
   },
 });
 
@@ -50,15 +39,11 @@ const App = () => {
 
   useEffect(() => {
     //console.log('provider', provider);
+    setEther(provider);
   }, [provider]);
 
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
   const textStyle = {
-    color: isDarkMode ? Colors.lighter : Colors.darker,
+    color: Colors.darker,
     margin: 10,
     fontSize: 16,
   };
@@ -72,13 +57,11 @@ const App = () => {
   };
 
   const getProviderDetails = async () => {
-    const providerDetails = await provider
-    /* .then(() => {
+    const providerDetails = await provider.then(() => {
       console.log('providerDetails', providerDetails);
-      webViewRef.current.injectJavaScript(
-        `window.ethereum = ${JSON.stringify(providerDetails)}`,
-      );
-    }); */
+      const script = `window.ethereum = ${JSON.stringify(providerDetails)};`;
+      webViewRef.current.injectJavaScript(script);
+    });
 
     /*     setEther(
       `window.ethereum = ${JSON.stringify({
@@ -97,7 +80,18 @@ const App = () => {
     });
     ethereum.on('connect', connectInfo => {
       console.log('CONNECT INFO', connectInfo);
+      const runScript = `
+          window.ethereum = new Proxy(window.ethereum, {
+            get: (target, name) => {
+              if (name === 'selectedAddress') {
+                return '${ethereum.selectedAddress}';
+              }
+              return target[name];
+            },
+          });
+        `;
 
+      webViewRef.current.injectJavaScript(runScript);
       //getProviderDetails();
     });
     ethereum.on('accountsChanged', accounts => {
@@ -241,6 +235,7 @@ const App = () => {
     }
   };
   const onMessage = message => {
+    console.log('NEW MESSAGE', message);
     console.log('NEW MESSAGE', message.nativeEvent.data);
     const action = JSON.parse(message.nativeEvent.data);
     console.log('NEW MESSAGE', action);
@@ -249,23 +244,15 @@ const App = () => {
     } else if (action.method === 'chainChanged') {
     }
   };
-  const jsCode = `document.querySelector('.footer-area').style.backgroundColor = 'red';`;
-  const jsCodeEther = `window.ethereum = ${ether}`;
-  const webview = useRef();
-  const runFirst = `
-  window.ethereum = 'hello'
-    `;
 
   return ethereum !== undefined ? (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
+    <SafeAreaView>
+      <StatusBar barStyle={'light-content'} />
+      <ScrollView contentInsetAdjustmentBehavior="automatic">
         <Button title={account ? 'Connected' : 'Connect'} onPress={connect} />
         <Button title="Sign" onPress={sign} />
         <Button title="Send transaction" onPress={sendTransaction} />
-        <Button title="Add chain" onPress={exampleRequest} />
+        <Button title="Add chain Mumbai" onPress={exampleRequest} />
 
         <Text style={textStyle}>{chain && `Connected chain: ${chain}`}</Text>
         <Text style={textStyle}>
@@ -280,25 +267,36 @@ const App = () => {
           startInLoadingState={true}
           style={{height: 600, backgroundColor: 'black'}}
           originWhitelist={['*']}
-          source={{uri: 'http://192.168.130.117:3000'}}
-          //source={{uri: 'https://reactnative.dev'}}
+          source={{uri: 'http:192.168.130.128:3000'}}
+          onLoad={() => {
+            // console.log('PROVIDER', ether._metamask);
+            const script = `window.ethereum = ${ethereum._metamask}`;
+            const runScript = `
+  window.ethereum = new Proxy(window.ethereum)
+`;
+            /*   const Script = `
+            window.ethereum = new Proxy(window.ethereum, {
+              get: (target, name) => {
+                if (name === 'selectedAddress') {
+                  return '${selectedAddress}';
+                }
+                return target[name];
+              },
+            });
+          `; */
+            //webViewRef.current.injectJavaScript(runScript);
+          }}
           onLoadStart={e => {
             //alreadyInjected = false;
-            console.log('Injected Ether onLoadStart', ether);
+            //console.log('Injected Ether onLoadStart', ether);
             console.log('load start');
           }}
           onLoadProgress={e => {
             console.log('progress:', e.nativeEvent.progress);
-            console.log('Injected Ether onLoadProgress', ether);
-            //if (!alreadyInjected) {
-            // webViewRef.injectJavaScript(jsCodeEther);
-            //alreadyInjected = true;
-            console.log('injected');
-            // }
+            //console.log('Injected Ether onLoadProgress', ether);
           }}
           javaScriptEnabledAndroid={true}
-          injectedJavaScript={`window.ethereum = {isMetaMask: true,on: () => {},console.log(window.ethereum) request: (args) => window.ethereum.send(args),send: (args) => {            return new Promise((resolve, reject) => {console.log(JSON.stringify(args));window.postMessage(JSON.stringify(args));              window.addEventListener('message', (event) => {const { data } = event;if (data && data.includes(args.method)) {resolve(JSON.parse(data)); }}); });}};true;`}
-          //injectedJavaScriptBeforeContentLoaded={runFirst}
+          //injectedJavaScript={runScript}
           onMessage={onMessage}
         />
       </ScrollView>
