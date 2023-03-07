@@ -12,7 +12,6 @@ import BackgroundTimer from 'react-native-background-timer';
 import MetaMaskSDK from '@metamask/sdk';
 import {WebView} from 'react-native-webview';
 import {ethers} from 'ethers';
-import Env from '@config'
 
 const sdk = new MetaMaskSDK({
   openDeeplink: link => {
